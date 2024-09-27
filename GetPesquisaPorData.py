@@ -6,28 +6,29 @@ from datetime import datetime,timedelta
 import os
 import math
 import logging
+from dotenv import load_dotenv 
+load_dotenv() #Carregar variaveis 
 
 #busca pesquisas do dia formato = yyyy/mm/dd
 iDATAINICIAL_BUSCA = (datetime.today() + timedelta(days=-4) ).strftime('%Y/%m/%d') 
 iDATAFINAL_BUSCA =datetime.today().strftime('%Y/%m/%d')
-#iDATAINICIAL_BUSCA = "2022/10/17"
-#iDATAFINAL_BUSCA = "2022/10/21"
 
 
-iURLBASE = "https://api.infopriceti.com.br"
-iUSER_PRD = "integracao.davo@infoprice.co"
-iPASS_PRD = "af04c71bf442f756a5aa5ab508b5ef574a9c258f66ba71f99e970b9d111365925c06b24cf88d27b08b47239f7e190468c3855354cb9795403eeeb604f3b77041"
+iURLBASE = os.getenv("iURLBASE_INFO") 
+iUSER_PRD = os.getenv("iUSERINFO") 
+iPASS_PRD = os.getenv("iTKN_INFO") 
+iBASICTKN_PRD = os.getenv("iBASIC_AUTH_INFO")
 
 if os.name == 'nt': #windows
-    dirLOGREQUEST = "//nas/dbxprd/PRD/LOG/" 
+    dirLOGREQUEST = os.getenv("iDIRLOG_WIN") 
 else:
-    os.environ['ORACLE_HOME'] = "/usr/lib/oracle/19.6/client64"   
-    dirLOGREQUEST = "/dbx/PRD/LOG/" 
+    os.environ['ORACLE_HOME'] = os.getenv("iDIRORACLE_LINUX")  
+    dirLOGREQUEST = os.getenv("iDIRLOG_LINUX") 
 
 
 #LOG
-iNAMEARQLOG = "InfoPrice_GetPesquisa_Data" 
-iEXTENSAO_LOG = ".log"
+iNAMEARQLOG = os.getenv("iNAMELOG_GETPESQUISA") 
+iEXTENSAO_LOG = os.getenv("iEXTENSAOLOG") 
 logging.basicConfig(
     filename=f"{dirLOGREQUEST}{iNAMEARQLOG}_{datetime.now().strftime('%d%m%Y')}{iEXTENSAO_LOG}",  # Nome do arquivo de log
     format='%(asctime)s - [PID:%(process)d] -  %(levelname)s - %(funcName)s - %(message)s ',  # Formato da mensagem de log
@@ -35,7 +36,7 @@ logging.basicConfig(
 )
 
 #Conexao Oracle PRD
-myCONNORA = cx_Oracle.connect('davo/d4v0@davoprd') #conexao com o Oracle
+myCONNORA = cx_Oracle.connect(f'{os.getenv("iUSER_ORA")}/{os.getenv("iPASS_ORA")}@{os.getenv("iHOST_ORA")}') 
 myCONNORA.autocommit = True
 curORA = myCONNORA.cursor() #execucoes Oracle
 curORA.execute("ALTER SESSION SET NLS_NUMERIC_CHARACTERS= ',.' ")
@@ -52,17 +53,17 @@ def getTOKEN():
             "password": str(iPASS_PRD)
         }
         headers = {
-            "Authorization": "Basic bXktdHJ1c3RlZC1jbGllbnQ6c2VjcmV0"
+            "Authorization": "Basic " + str(iBASICTKN_PRD)
         }
 
         response = requests.request(method, url, headers=headers, params=params)
-        #print(json.loads(response.text)["access_token"])
         return json.loads(response.text)["access_token"]
     except Exception as e:
         logging.error(f"{e}")
         return ""
 
 def excluiHISTORICO():
+    logging.info(f"Exclui historico do BD, para evitar duplicidade de registros")
     try:
         iDINI =  str(iDATAINICIAL_BUSCA)[8:10] + "/" + str(iDATAINICIAL_BUSCA)[5:7] + "/" + str(iDATAINICIAL_BUSCA)[0:4]
         iDFIM =  str(iDATAFINAL_BUSCA)[8:10] + "/" + str(iDATAFINAL_BUSCA)[5:7] + "/" + str(iDATAFINAL_BUSCA)[0:4]
@@ -81,6 +82,7 @@ def excluiHISTORICO():
         pass
 
 def buscaQTDPAGINAS():
+    logging.info(f"Funcao, busca a quantidade de paginas de pesquisa vigente")
     try:
 
         url = iURLBASE + "/integracao/v2/relatorio?dataInicio=" + str(iDATAINICIAL_BUSCA) + "&dataFim=" + str(iDATAFINAL_BUSCA) + "&page=0"
@@ -102,6 +104,7 @@ def buscaQTDPAGINAS():
         return 1
 
 def trataJSON(iJSON):
+    logging.info(f"Funcao, trata o JSON recebido no requesta da InfoPrice")
     try:
         #print(iJSON)
         for itens in iJSON['content']:
@@ -119,12 +122,13 @@ def trataJSON(iJSON):
             
             if iPRECO_NORMAL != None:
                 iQUERY = (" " +
-                "             insert into INFOPRICE_EXTRACAO  " +
+                "             insert into davo.INFOPRICE_EXTRACAO  " +
                 "     (estab_data, estab_descricao, prod_cod, " +
                 "     prod_preco, prod_preco_atacado, prod_promocao, data_extracao, prod_itm7) values " +
                 "     ('" + str(iDATA_TRATADA) + "', '" + str(iLOJA) + "', " + str(iCOD) + ", " +
                 "     " + str(iPRECO_NORMAL) + ", " + str(iPRECO_ATACADO) + " , '" + str(iPROMOCAO) + "', sysdate, " + str(iCOD)[0:len(iCOD)-1] + ") " +
                 " ")
+                logging.debug(f"{iQUERY}")
                 try:
                     curORA.execute(iQUERY)                  
                 except cx_Oracle.DatabaseError as e_sql: 
@@ -138,6 +142,7 @@ def trataJSON(iJSON):
 
 
 def extraiINF(iPAGE):
+    logging.info(f"Funcao , faz o requesta da pagina. Parametros ({iPAGE})")
     url = iURLBASE + "/integracao/v2/relatorio?dataInicio=" + str(iDATAINICIAL_BUSCA) + "&dataFim=" + str(iDATAFINAL_BUSCA) + "&page=" + str(iPAGE)
 
     payload={}
@@ -159,7 +164,8 @@ def extraiINF(iPAGE):
 iCONTADOR = 0
 iQTDPAGINAS_EXTRACAO = buscaQTDPAGINAS()
 while True:
-    print("iniciando pagina: " + str(iCONTADOR))
+    logging.debug(f"iniciando pagina: {iCONTADOR}")
+    print(f"iniciando pagina: {iCONTADOR}")
     if iCONTADOR < iQTDPAGINAS_EXTRACAO:
         extraiINF(iCONTADOR)
         iCONTADOR += 1
@@ -167,7 +173,7 @@ while True:
         break
     if iCONTADOR>= 999: 
         logging.warning(f"Alerta, indicio de erro iCONTADOR: {iCONTADOR}")
-        break #indicio de erro
+        break
 
 try:
     myCONNORA.close()
