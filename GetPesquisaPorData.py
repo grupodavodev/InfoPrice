@@ -67,10 +67,10 @@ def excluiHISTORICO():
     try:
         iDINI =  str(iDATAINICIAL_BUSCA)[8:10] + "/" + str(iDATAINICIAL_BUSCA)[5:7] + "/" + str(iDATAINICIAL_BUSCA)[0:4]
         iDFIM =  str(iDATAFINAL_BUSCA)[8:10] + "/" + str(iDATAFINAL_BUSCA)[5:7] + "/" + str(iDATAFINAL_BUSCA)[0:4]
-        iQUERY = (" "+ 
-        "             DELETE FROM INFOPRICE_EXTRACAO INF "+ 
-        "     WHERE INF.ESTAB_DATA BETWEEN ('" + str(iDINI) + "') AND ('" + str(iDFIM) + "') "+ 
-        " ")
+        iQUERY = (f"""
+                     DELETE FROM INFOPRICE_EXTRACAO INF 
+             WHERE INF.ESTAB_DATA BETWEEN ('{iDINI}') AND ('{iDFIM}') 
+        """)
         logging.debug(f"{iQUERY}")
         try:
             curORA.execute(iQUERY)                  
