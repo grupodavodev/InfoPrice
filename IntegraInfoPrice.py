@@ -1,4 +1,5 @@
 #wesley 07.08.22 - integracao com InfoPrice
+#wesley 27.09.22 - subindo versionamento para o GIT
 
 #Importacao das bibliotecas uteis
 import requests
