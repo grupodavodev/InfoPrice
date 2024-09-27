@@ -1,2 +1,2 @@
 # InfoPrice
-Integração com a InfoPrive
+Integração com a InfoPrice
