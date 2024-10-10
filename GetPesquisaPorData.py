@@ -8,6 +8,7 @@ import math
 import logging
 from dotenv import load_dotenv 
 load_dotenv() #Carregar variaveis 
+import time
 
 #busca pesquisas do dia formato = yyyy/mm/dd
 iDATAINICIAL_BUSCA = (datetime.today() + timedelta(days=-4) ).strftime('%Y/%m/%d') 
@@ -85,7 +86,8 @@ def buscaQTDPAGINAS():
     logging.info(f"Funcao, busca a quantidade de paginas de pesquisa vigente")
     try:
 
-        url = iURLBASE + "/integracao/v2/relatorio?dataInicio=" + str(iDATAINICIAL_BUSCA) + "&dataFim=" + str(iDATAFINAL_BUSCA) + "&page=0"
+        #url = iURLBASE + "/integracao/v2/relatorio?dataInicio=" + str(iDATAINICIAL_BUSCA) + "&dataFim=" + str(iDATAFINAL_BUSCA) + "&page=0"
+        url = iURLBASE + "/integracao/v3/relatorio?dataInicio=" + str(iDATAINICIAL_BUSCA) + "&dataFim=" + str(iDATAFINAL_BUSCA) + "&page=0"
 
         payload={}
         headers = {
@@ -120,14 +122,60 @@ def trataJSON(iJSON):
             if str(itens['promocao']) == "True" or str(itens['rebaixa_preco']) == "True"  :
                 iPROMOCAO = "True"
             
+            #ATUALIZACAO V3
+            iGATILHOATACADO = 0
+            if "gatilho_atacado" in itens: 
+                if itens['gatilho_atacado'] != None: iGATILHOATACADO = itens['gatilho_atacado']
+            iREBAIXAPRECO = ""
+            if "rebaixa_preco" in itens: iREBAIXAPRECO = itens['rebaixa_preco']
+            iCLUBEDESCONTO = ""
+            if "clube_desconto" in itens: iCLUBEDESCONTO = itens['clube_desconto']
+            iPRECODE = "0"
+            if "preco_de" in itens: 
+                if itens['preco_de'] != None: 
+                    try:
+                        iPRECODE = itens['preco_de']
+                    except:
+                        pass
+            iPRECOPOR = "0"
+            if "preco_por" in itens: 
+                if itens['preco_por'] != None: 
+                    try:
+                        iPRECOPOR = itens['preco_por']
+                    except:
+                        pass
+            iDTVALIDADE = ""
+            if "data_validade" in itens: 
+                if itens['data_validade'] != None: iDTVALIDADE = itens['data_validade']
+            iAUDITORIA = ""
+            if "auditoria" in itens: 
+                if itens['auditoria'] != None: iAUDITORIA = itens['auditoria']
+            iSUGESTAO = ""
+            if "sugestao" in itens: 
+                if itens['sugestao'] != None: iSUGESTAO = itens['sugestao']
+            iESCOPO = ""
+            if "escopo" in itens: 
+                if itens['escopo'] != None: iESCOPO = itens['escopo']
+
+
             if iPRECO_NORMAL != None:
-                iQUERY = (" " +
-                "             insert into davo.INFOPRICE_EXTRACAO  " +
-                "     (estab_data, estab_descricao, prod_cod, " +
-                "     prod_preco, prod_preco_atacado, prod_promocao, data_extracao, prod_itm7) values " +
-                "     ('" + str(iDATA_TRATADA) + "', '" + str(iLOJA) + "', " + str(iCOD) + ", " +
-                "     " + str(iPRECO_NORMAL) + ", " + str(iPRECO_ATACADO) + " , '" + str(iPROMOCAO) + "', sysdate, " + str(iCOD)[0:len(iCOD)-1] + ") " +
-                " ")
+                iQUERY = (f""" 
+                        INSERT INTO davo.infoprice_extracao
+                                    (estab_data,             estab_descricao,             prod_cod,
+                                    prod_preco,             prod_preco_atacado,             prod_promocao,
+                                    data_extracao,             prod_itm7,
+                                        gatilho_atacado ,rebaixa_preco ,clube_desconto,
+                                            preco_de,preco_por  , data_validade  ,
+                                            auditoria  ,sugestao, escopo    
+                                     )
+                        VALUES      ('{iDATA_TRATADA}',             '{iLOJA}',             {iCOD},
+                                    {iPRECO_NORMAL},             {iPRECO_ATACADO},             '{iPROMOCAO}',
+                                    sysdate,             {str(iCOD)[0:len(iCOD)-1]},
+                                    '{iGATILHOATACADO}',             '{iREBAIXAPRECO}',             '{iCLUBEDESCONTO}',
+                                    {iPRECODE},             {iPRECOPOR},             '{iDTVALIDADE}',
+                                    '{iAUDITORIA}',             '{iSUGESTAO}', '{iESCOPO}'
+                                    ) 
+                    """)
                 logging.debug(f"{iQUERY}")
                 try:
                     curORA.execute(iQUERY)                  
@@ -143,7 +191,8 @@ def trataJSON(iJSON):
 
 def extraiINF(iPAGE):
     logging.info(f"Funcao , faz o requesta da pagina. Parametros ({iPAGE})")
-    url = iURLBASE + "/integracao/v2/relatorio?dataInicio=" + str(iDATAINICIAL_BUSCA) + "&dataFim=" + str(iDATAFINAL_BUSCA) + "&page=" + str(iPAGE)
+    #url = iURLBASE + "/integracao/v2/relatorio?dataInicio=" + str(iDATAINICIAL_BUSCA) + "&dataFim=" + str(iDATAFINAL_BUSCA) + "&page=" + str(iPAGE)
+    url = iURLBASE + "/integracao/v3/relatorio?dataInicio=" + str(iDATAINICIAL_BUSCA) + "&dataFim=" + str(iDATAFINAL_BUSCA) + "&page=" + str(iPAGE)
 
     payload={}
     headers = {
