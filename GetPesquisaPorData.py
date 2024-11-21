@@ -12,7 +12,7 @@ import time
 import sys
 sys.path.append(os.getenv("iDIRLIBEXTRA_WIN") if os.name == 'nt' else os.getenv("iDIRLIBEXTRA_LINUX"))
 from logging_config import setup_logger #log padrao
-logger = setup_logger()
+logger = setup_logger(app_name=os.path.basename(__file__).replace('.py', ''), project_name=os.getenv("iPROJECTNAMELOG"))
 
 #busca pesquisas do dia formato = yyyy/mm/dd
 iDATAINICIAL_BUSCA = (datetime.today() + timedelta(days=-4) ).strftime('%Y/%m/%d') 
