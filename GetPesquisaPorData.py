@@ -10,6 +10,11 @@ from dotenv import load_dotenv
 load_dotenv() #Carregar variaveis 
 import time
 
+import sys
+sys.path.append(os.getenv("iDIRLIBEXTRA_WIN") if os.name == 'nt' else os.getenv("iDIRLIBEXTRA_LINUX"))
+from logging_config import setup_logger #log padrao
+logger = setup_logger()
+
 #busca pesquisas do dia formato = yyyy/mm/dd
 iDATAINICIAL_BUSCA = (datetime.today() + timedelta(days=-4) ).strftime('%Y/%m/%d') 
 iDATAFINAL_BUSCA =datetime.today().strftime('%Y/%m/%d')
@@ -20,21 +25,8 @@ iUSER_PRD = os.getenv("iUSERINFO")
 iPASS_PRD = os.getenv("iTKN_INFO") 
 iBASICTKN_PRD = os.getenv("iBASIC_AUTH_INFO")
 
-if os.name == 'nt': #windows
-    dirLOGREQUEST = os.getenv("iDIRLOG_WIN") 
-else:
+if os.name != 'nt': #windows
     os.environ['ORACLE_HOME'] = os.getenv("iDIRORACLE_LINUX")  
-    dirLOGREQUEST = os.getenv("iDIRLOG_LINUX") 
-
-
-#LOG
-iNAMEARQLOG = os.getenv("iNAMELOG_GETPESQUISA") 
-iEXTENSAO_LOG = os.getenv("iEXTENSAOLOG") 
-logging.basicConfig(
-    filename=f"{dirLOGREQUEST}{iNAMEARQLOG}_{datetime.now().strftime('%d%m%Y')}{iEXTENSAO_LOG}",  # Nome do arquivo de log
-    format='%(asctime)s - [PID:%(process)d] -  %(levelname)s - %(funcName)s - %(message)s ',  # Formato da mensagem de log
-    level=logging.DEBUG  # Nivel minimo de log que sera registrado
-)
 
 #Conexao Oracle PRD
 myCONNORA = cx_Oracle.connect(f'{os.getenv("iUSER_ORA")}/{os.getenv("iPASS_ORA")}@{os.getenv("iHOST_ORA")}') 
@@ -44,7 +36,7 @@ curORA.execute("ALTER SESSION SET NLS_NUMERIC_CHARACTERS= ',.' ")
 curORA.execute("alter session set nls_date_format = 'DD/MM/YYYY'")    
 
 def getTOKEN():
-    logging.info(f"Funcao, capta token")
+    logger.info(f"Funcao, capta token")
     try:
         url = iURLBASE + "/portal-acesso-web/oauth/token"
         method = "POST"
@@ -60,11 +52,11 @@ def getTOKEN():
         response = requests.request(method, url, headers=headers, params=params)
         return json.loads(response.text)["access_token"]
     except Exception as e:
-        logging.error(f"{e}")
+        logger.error(f"{e}")
         return ""
 
 def excluiHISTORICO():
-    logging.info(f"Exclui historico do BD, para evitar duplicidade de registros")
+    logger.info(f"Exclui historico do BD, para evitar duplicidade de registros")
     try:
         iDINI =  str(iDATAINICIAL_BUSCA)[8:10] + "/" + str(iDATAINICIAL_BUSCA)[5:7] + "/" + str(iDATAINICIAL_BUSCA)[0:4]
         iDFIM =  str(iDATAFINAL_BUSCA)[8:10] + "/" + str(iDATAFINAL_BUSCA)[5:7] + "/" + str(iDATAFINAL_BUSCA)[0:4]
@@ -72,18 +64,18 @@ def excluiHISTORICO():
                      DELETE FROM INFOPRICE_EXTRACAO INF 
              WHERE INF.ESTAB_DATA BETWEEN ('{iDINI}') AND ('{iDFIM}') 
         """)
-        logging.debug(f"{iQUERY}")
+        logger.debug(f"{iQUERY}")
         try:
             curORA.execute(iQUERY)                  
         except cx_Oracle.DatabaseError as e_sql: 
             print("Erro iQUERY_CLI: " + str(e_sql))
             pass
     except Exception as e:
-        logging.error(f"{e}")
+        logger.error(f"{e}")
         pass
 
 def buscaQTDPAGINAS():
-    logging.info(f"Funcao, busca a quantidade de paginas de pesquisa vigente")
+    logger.info(f"Funcao, busca a quantidade de paginas de pesquisa vigente")
     try:
 
         #url = iURLBASE + "/integracao/v2/relatorio?dataInicio=" + str(iDATAINICIAL_BUSCA) + "&dataFim=" + str(iDATAFINAL_BUSCA) + "&page=0"
@@ -94,19 +86,19 @@ def buscaQTDPAGINAS():
             "Authorization": "Bearer " + str(getTOKEN())
             ,"Content-Type": "application/json"
         }
-        logging.debug(f"url: {url}")
+        logger.debug(f"url: {url}")
         response = requests.request("GET", url, headers=headers, data=payload)
-        logging.debug(f"response.status_code: {response.status_code}")
+        logger.debug(f"response.status_code: {response.status_code}")
         iJSON = json.loads(response.text)
         print(f"Total de paginas: {iJSON['totalPages']}")
-        logging.debug(f"Total de paginas: {iJSON['totalPages']}")
+        logger.debug(f"Total de paginas: {iJSON['totalPages']}")
         return iJSON['totalPages']
     except:
         print(f"Err. Total de paginas: 01")
         return 1
 
 def trataJSON(iJSON):
-    logging.info(f"Funcao, trata o JSON recebido no requesta da InfoPrice")
+    logger.info(f"Funcao, trata o JSON recebido no requesta da InfoPrice")
     try:
         #print(iJSON)
         for itens in iJSON['content']:
@@ -176,7 +168,7 @@ def trataJSON(iJSON):
                                     '{iAUDITORIA}',             '{iSUGESTAO}', '{iESCOPO}'
                                     ) 
                     """)
-                logging.debug(f"{iQUERY}")
+                logger.debug(f"{iQUERY}")
                 try:
                     curORA.execute(iQUERY)                  
                 except cx_Oracle.DatabaseError as e_sql: 
@@ -184,13 +176,13 @@ def trataJSON(iJSON):
                     pass
                 
     except Exception as e:
-        logging.error(f"{e}")
+        logger.error(f"{e}")
         print(f"{e}")
         pass
 
 
 def extraiINF(iPAGE):
-    logging.info(f"Funcao , faz o requesta da pagina. Parametros ({iPAGE})")
+    logger.info(f"Funcao , faz o requesta da pagina. Parametros ({iPAGE})")
     #url = iURLBASE + "/integracao/v2/relatorio?dataInicio=" + str(iDATAINICIAL_BUSCA) + "&dataFim=" + str(iDATAFINAL_BUSCA) + "&page=" + str(iPAGE)
     url = iURLBASE + "/integracao/v3/relatorio?dataInicio=" + str(iDATAINICIAL_BUSCA) + "&dataFim=" + str(iDATAFINAL_BUSCA) + "&page=" + str(iPAGE)
 
@@ -199,7 +191,7 @@ def extraiINF(iPAGE):
             "Authorization": "Bearer " + str(getTOKEN())
             ,"Content-Type": "application/json"
         }
-    logging.debug(f"{url}")
+    logger.debug(f"{url}")
     response = requests.request("GET", url, headers=headers, data=payload)
     iJSON = json.loads(response.text)
 
@@ -213,7 +205,7 @@ def extraiINF(iPAGE):
 iCONTADOR = 0
 iQTDPAGINAS_EXTRACAO = buscaQTDPAGINAS()
 while True:
-    logging.debug(f"iniciando pagina: {iCONTADOR}")
+    logger.debug(f"iniciando pagina: {iCONTADOR}")
     print(f"iniciando pagina: {iCONTADOR}")
     if iCONTADOR < iQTDPAGINAS_EXTRACAO:
         extraiINF(iCONTADOR)
@@ -221,7 +213,7 @@ while True:
     else:
         break
     if iCONTADOR>= 999: 
-        logging.warning(f"Alerta, indicio de erro iCONTADOR: {iCONTADOR}")
+        logger.warning(f"Alerta, indicio de erro iCONTADOR: {iCONTADOR}")
         break
 
 try:

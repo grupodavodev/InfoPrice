@@ -14,26 +14,20 @@ import logging
 from dotenv import load_dotenv 
 load_dotenv() #Carregar variaveis 
 
+import sys
+sys.path.append(os.getenv("iDIRLIBEXTRA_WIN") if os.name == 'nt' else os.getenv("iDIRLIBEXTRA_LINUX"))
+from logging_config import setup_logger #log padrao
+logger = setup_logger()
+
 ###################################################################################### 1- VARIAVEIS GLOBAIS - INICIO
 #
 #
 
 if os.name == 'nt': #windows
-    dirLOGREQUEST = os.getenv("iDIRLOG_WIN") 
     dirCSV = os.getenv("iDIRCSV_WIN") 
 else:
     os.environ['ORACLE_HOME'] = os.getenv("iDIRORACLE_LINUX") 
-    dirLOGREQUEST = os.getenv("iDIRLOG_LINUX") 
     dirCSV =  os.getenv("iDIRCSV_LINUX") 
-
-#LOG
-iNAMEARQLOG = os.getenv("iNAMELOG") 
-iEXTENSAO_LOG = os.getenv("iEXTENSAOLOG") 
-logging.basicConfig(
-    filename=f"{dirLOGREQUEST}{iNAMEARQLOG}_{datetime.now().strftime('%d%m%Y')}{iEXTENSAO_LOG}",  # Nome do arquivo de log
-    format='%(asctime)s - [PID:%(process)d] -  %(levelname)s - %(funcName)s - %(message)s ',  # Formato da mensagem de log
-    level=logging.DEBUG  # Nivel minimo de log que sera registrado
-)
 
 #Conexao Oracle PRD
 try:
@@ -68,17 +62,17 @@ iNOME_CSV_DATA = str(datetime.now().strftime('%Y-%m-%d'))
 #
 
 def enviaSFTP(iDIRCOMPLETO,iNOMEARQUIVO):
-    logging.info("Funcao, envia o dado para o SFTP")
+    logger.info("Funcao, envia o dado para o SFTP")
     conecta_sftp(iHOST,portaSFTP,userSFTP,passSFTP)
     iDE = iDIRCOMPLETO
     iPARA ="/home/" + str(userSFTP) + "/input/" + str(iNOMEARQUIVO)
-    logging.debug(f"Enviando arquivo de ({iDE}) para ({iPARA})")
+    logger.debug(f"Enviando arquivo de ({iDE}) para ({iPARA})")
     sftp.put(iDE,iPARA)
     desconecta_sftp()
-    logging.debug("Fim da funcao")
+    logger.debug("Fim da funcao")
 
 def conecta_sftp(iHOST,portaSFTP,userSFTP,passSFTP):
-    logging.info("Funcao, faz a conexao com o SFTP")
+    logger.info("Funcao, faz a conexao com o SFTP")
     global sftp
     global transport
     try:
@@ -86,30 +80,30 @@ def conecta_sftp(iHOST,portaSFTP,userSFTP,passSFTP):
         transport.connect(None,str(userSFTP),str(passSFTP)) #usuario + senha
         sftp = paramiko.SFTPClient.from_transport(transport) #conecta sftp
     except IndexError as e: 
-        logging.error(f"{e}") 
+        logger.error(f"{e}") 
         desconecta_sftp()
     except paramiko.SSHException as  f:
-        logging.error(f"{f}") 
+        logger.error(f"{f}") 
         desconecta_sftp()
 
 def desconecta_sftp(): 
-    logging.info(f"Funcao, desconecta o SFTP")
+    logger.info(f"Funcao, desconecta o SFTP")
     global sftp
     global transport
     try:
         if sftp: sftp.close()
         if transport: transport.close()
     except IndexError as e:  
-        logging.error(f"{e}") 
+        logger.error(f"{e}") 
         desconecta_sftp()
         pass
     except paramiko.SSHException as  f:
-        logging.error(f"{f}") 
+        logger.error(f"{f}") 
         desconecta_sftp()
         pass
 
 def geraCSV(iTIPO,iLISTA):
-    logging.info(f"Funcao, monta os dados de arquivo CSV. Parametros ({iTIPO}) - (iLISTA)")
+    logger.info(f"Funcao, monta os dados de arquivo CSV. Parametros ({iTIPO}) - (iLISTA)")
 
     #produtos
     if iTIPO == 1:
@@ -165,8 +159,8 @@ def geraCSV(iTIPO,iLISTA):
     #monta CSV
     iNOME_ARQ_FTP = str(iNOME_CSV_INICIAL) + str(iNOMEARQ) + str(iNOME_CSV_DATA) + ".csv"
     iDIR_COMPLETO = str(dirCSV) + str(iNOME_ARQ_FTP) 
-    logging.debug(f"iNOME_ARQ_FTP: {iNOME_ARQ_FTP}")   
-    logging.debug(f"iDIR_COMPLETO: {iDIR_COMPLETO}")   
+    logger.debug(f"iNOME_ARQ_FTP: {iNOME_ARQ_FTP}")   
+    logger.debug(f"iDIR_COMPLETO: {iDIR_COMPLETO}")   
     with open(iDIR_COMPLETO, 'w', newline='', encoding='utf-8') as gravar:
         fieldnames = iLISTA_CABEC
         escrever = csv.DictWriter(gravar, fieldnames=fieldnames, delimiter='|')
@@ -178,12 +172,12 @@ def geraCSV(iTIPO,iLISTA):
                 iDICT.update({cabec:itens[iCONT_C_ITENS]})
                 iCONT_C_ITENS += 1
             escrever.writerow(iDICT) 
-    logging.debug(f"Arquivo preparado, chamando funcao para envio do arquivo para o SFTP")
+    logger.debug(f"Arquivo preparado, chamando funcao para envio do arquivo para o SFTP")
     enviaSFTP(iDIR_COMPLETO,iNOME_ARQ_FTP)
-    logging.debug(f"Fim da funcao")
+    logger.debug(f"Fim da funcao")
 
 def montaFORNECEDOR():
-    logging.info(f"Funcao, query que monta os dados de Fornecedor")
+    logger.info(f"Funcao, query que monta os dados de Fornecedor")
     iQUERY = ("""
                 SELECT To_char(sysdate, 'YYYY-MM-DD')            AS data_integracao,
                 t.tip_codigo
@@ -212,17 +206,17 @@ def montaFORNECEDOR():
                                             ON ( i.git_cod_item = Trunc(tmp.cprod / 10) )) 
                                             
     """)
-    logging.debug(f"{iQUERY}")
+    logger.debug(f"{iQUERY}")
     try:
         iLISTA_FOR = []
         for iITEMS in curORA.execute(iQUERY).fetchall():
             iLISTA_FOR.append((iITEMS))
         geraCSV(2,iLISTA_FOR)            
     except cx_Oracle.DatabaseError as e_sql: 
-        logging.error(f"{e_sql}")
+        logger.error(f"{e_sql}")
 
 def montaPRECOS():
-    logging.info(f"Funcao, query que monta os dados de precos DAVO")
+    logger.info(f"Funcao, query que monta os dados de precos DAVO")
     iQUERY = ("""
          SELECT To_char(sysdate, 'YYYY-MM-DD')            AS data_integracao,
                     Trunc(est.get_cod_local / 10)             AS cod_loja,
@@ -264,17 +258,17 @@ def montaPRECOS():
                 ORDER  BY est.get_cod_local ASC 
                                   
     """)
-    logging.debug(f"{iQUERY}")
+    logger.debug(f"{iQUERY}")
     try:
         iLISTA_PRC = []
         for iITEMS in curORA.execute(iQUERY).fetchall():
             iLISTA_PRC.append((iITEMS))
         geraCSV(3,iLISTA_PRC)            
     except cx_Oracle.DatabaseError as e_sql: 
-        logging.error(f"{e_sql}")
+        logger.error(f"{e_sql}")
 
 def montaOFERTAS():
-    logging.info(f"Funcao, query que monta os dados de ofertas DAVO")
+    logger.info(f"Funcao, query que monta os dados de ofertas DAVO")
     iQUERY = ("""
          SELECT *
                 FROM   (SELECT To_char(rms.Rmsto_date(rms.pc_rms_cal.F_calcstpr(6,
@@ -318,17 +312,17 @@ def montaOFERTAS():
                         AND SE1.data_fim IS NOT NULL ) 
                                   
     """)
-    logging.debug(f"{iQUERY}")
+    logger.debug(f"{iQUERY}")
     try:
         iLISTA_PRC = []
         for iITEMS in curORA.execute(iQUERY).fetchall():
             iLISTA_PRC.append((iITEMS))
         geraCSV(4,iLISTA_PRC)            
     except cx_Oracle.DatabaseError as e_sql: 
-        logging.error(f"{e_sql}")
+        logger.error(f"{e_sql}")
 
 def montaVENDAS():
-    logging.info(f"Funcao, query que monta os dados de venda DAVO")
+    logger.info(f"Funcao, query que monta os dados de venda DAVO")
     iQUERY = ("""
         SELECT dta_venda,
                 loja_sdig,
@@ -393,35 +387,35 @@ def montaVENDAS():
             ORDER  BY SE1.loja_sdig ASC 
                                   
     """)
-    logging.debug(f"{iQUERY}")
+    logger.debug(f"{iQUERY}")
     try:
         iLISTA_PRC = []
         for iITEMS in curORA.execute(iQUERY).fetchall():
             iLISTA_PRC.append((iITEMS))
         geraCSV(5,iLISTA_PRC)            
     except cx_Oracle.DatabaseError as e_sql: 
-        logging.error(f"{e_sql}")
+        logger.error(f"{e_sql}")
 
 
 def limpaBASE_TMP(iLISTA_COD_ITENSVALIDOS):
-    logging.info(f"Funcao, limpando base atual e atualizando lista de itens. Total de itens validos: {len(iLISTA_COD_ITENSVALIDOS)}")
+    logger.info(f"Funcao, limpando base atual e atualizando lista de itens. Total de itens validos: {len(iLISTA_COD_ITENSVALIDOS)}")
     iQUERY = (" delete from davo.infoprice_tmp ")
-    logging.debug(f"{iQUERY}")
+    logger.debug(f"{iQUERY}")
     try:
         curORA.execute(iQUERY)
     except cx_Oracle.DatabaseError as e_sql: 
-        logging.error(f"{e_sql}")
+        logger.error(f"{e_sql}")
     
     for itens in iLISTA_COD_ITENSVALIDOS:
         iQUERY = (" insert into davo.infoprice_tmp (cprod) values (" + str(itens) + ") ")
         try:
             curORA.execute(iQUERY)
         except cx_Oracle.DatabaseError as e_sql: 
-            logging.error(f"{e_sql}")
+            logger.error(f"{e_sql}")
 
 
 def captaITENSVALIDOS():
-    logging.info(f"Funcao, capta codigo de itens validos para submeter a pesquisa de preco na InfoPrice")
+    logger.info(f"Funcao, capta codigo de itens validos para submeter a pesquisa de preco na InfoPrice")
     iQUERY = ("""
                 SELECT To_char(sysdate, 'YYYY-MM-DD')            AS data_integracao,
                     ean.ean_cod_pro_alt                       AS codigo,
@@ -510,7 +504,7 @@ def captaITENSVALIDOS():
                     AND ean.ean_cod_ean = itm.git_codigo_ean13
                     AND itm.git_polit_pre = 'P'
     """)
-    logging.debug(f"{iQUERY}")
+    logger.debug(f"{iQUERY}")
     try:
         iLISTA_PRODUTOS = []
         for iITEMS in curORA.execute(iQUERY).fetchall():
@@ -524,7 +518,7 @@ def captaITENSVALIDOS():
             montaOFERTAS()
             montaVENDAS()
     except cx_Oracle.DatabaseError as e_sql: 
-        logging.error(f"{e_sql}")
+        logger.error(f"{e_sql}")
     
 
 
