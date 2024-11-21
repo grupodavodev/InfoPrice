@@ -68,7 +68,7 @@ def excluiHISTORICO():
         try:
             curORA.execute(iQUERY)                  
         except cx_Oracle.DatabaseError as e_sql: 
-            print("Erro iQUERY_CLI: " + str(e_sql))
+            logging.warning(f"{e_sql} {iQUERY}")
             pass
     except Exception as e:
         logger.error(f"{e}")
@@ -172,7 +172,7 @@ def trataJSON(iJSON):
                 try:
                     curORA.execute(iQUERY)                  
                 except cx_Oracle.DatabaseError as e_sql: 
-                    print("Erro iQUERY_CLI: " + str(e_sql))
+                    logging.warning(f"{e_sql} {iQUERY}")
                     pass
                 
     except Exception as e:
