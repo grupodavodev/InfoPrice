@@ -5,7 +5,6 @@ import cx_Oracle
 from datetime import datetime,timedelta
 import os
 import math
-import logging
 from dotenv import load_dotenv 
 load_dotenv() #Carregar variaveis 
 import time
@@ -68,12 +67,9 @@ def excluiHISTORICO():
         try:
             curORA.execute(iQUERY)                  
         except cx_Oracle.DatabaseError as e_sql: 
-            logging.warning(f"{e_sql} {iQUERY}")
-            pass
+            logger.warning(f"{e_sql} {iQUERY}")
     except Exception as e:
         logger.error(f"{e}")
-        pass
-
 def buscaQTDPAGINAS():
     logger.info(f"Funcao, busca a quantidade de paginas de pesquisa vigente")
     try:
@@ -101,6 +97,7 @@ def trataJSON(iJSON):
     logger.info(f"Funcao, trata o JSON recebido no requesta da InfoPrice")
     try:
         #print(iJSON)
+        iCONTADOR = 0
         for itens in iJSON['content']:
             iDATA = itens['data']
             iDATA_TRATADA = str(iDATA)[8:10] + "/" + str(iDATA)[5:7] + "/" + str(iDATA)[0:4]
@@ -168,16 +165,19 @@ def trataJSON(iJSON):
                                     '{iAUDITORIA}',             '{iSUGESTAO}', '{iESCOPO}'
                                     ) 
                     """)
+                logger.debug(f"{iCONTADOR}")
+                iCONTADOR += 1
                 logger.debug(f"{iQUERY}")
                 try:
                     curORA.execute(iQUERY)                  
                 except cx_Oracle.DatabaseError as e_sql: 
-                    logging.warning(f"{e_sql} {iQUERY}")
-                    pass
+                    logger.warning(f"Erro: {e_sql} {iQUERY}")
+                    #time.sleep(5)
+                    #i = 0
                 
     except Exception as e:
-        logger.error(f"{e}")
-        print(f"{e}")
+        logger.error(f"Erros: {e}")
+        print(f"Erros: {e}")
         pass
 
 
